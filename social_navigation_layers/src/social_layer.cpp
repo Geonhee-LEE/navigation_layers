@@ -19,13 +19,13 @@ void SocialLayer::onInitialize()
   ros::NodeHandle nh("~/" + name_), g_nh;
   current_ = true;
   first_time_ = true;
-  people_sub_ = nh.subscribe("/people", 1, &SocialLayer::peopleCallback, this);
+  people_sub_ = g_nh.subscribe("objects", 1, &SocialLayer::peopleCallback, this);
 }
 
-void SocialLayer::peopleCallback(const people_msgs::People& people)
+void SocialLayer::peopleCallback(const objects_msgs::ObjectArrayMsg& people)
 {
   boost::recursive_mutex::scoped_lock lock(lock_);
-  people_list_ = people;
+  object_list_ = people;
 }
 
 
@@ -37,32 +37,35 @@ void SocialLayer::updateBounds(double origin_x, double origin_y, double origin_z
   std::string global_frame = layered_costmap_->getGlobalFrameID();
   transformed_people_.clear();
 
-  for (unsigned int i = 0; i < people_list_.people.size(); i++)
+  for (unsigned int i = 0; i < object_list_.objects.size(); i++)
   {
-    people_msgs::Person& person = people_list_.people[i];
-    people_msgs::Person tpt;
+    if(object_list_.objects[i].object_class != 4)
+      continue;
+
+    leg_tracker::Person& person = object_list_.objects[i].person;
+    leg_tracker::Person tpt;
     geometry_msgs::PointStamped pt, opt;
 
     try
     {
-      pt.point.x = person.position.x;
-      pt.point.y = person.position.y;
-      pt.point.z = person.position.z;
-      pt.header.frame_id = people_list_.header.frame_id;
-      pt.header.stamp = people_list_.header.stamp;
+      pt.point.x = person.pose.position.x;
+      pt.point.y = person.pose.position.y;
+      pt.point.z = person.pose.position.z;
+      pt.header.frame_id = "map";
+      pt.header.stamp = object_list_.header.stamp;
       tf_->transform(pt, opt, global_frame);
-      tpt.position.x = opt.point.x;
-      tpt.position.y = opt.point.y;
-      tpt.position.z = opt.point.z;
+      tpt.pose.position.x = opt.point.x;
+      tpt.pose.position.y = opt.point.y;
+      tpt.pose.position.z = opt.point.z;
 
       pt.point.x += person.velocity.x;
       pt.point.y += person.velocity.y;
       pt.point.z += person.velocity.z;
       tf_->transform(pt, opt, global_frame);
 
-      tpt.velocity.x = opt.point.x - tpt.position.x;
-      tpt.velocity.y = opt.point.y - tpt.position.y;
-      tpt.velocity.z = opt.point.z - tpt.position.z;
+      tpt.velocity.x = opt.point.x - tpt.pose.position.x;
+      tpt.velocity.y = opt.point.y - tpt.pose.position.y;
+      tpt.velocity.z = opt.point.z - tpt.pose.position.z;
 
       transformed_people_.push_back(tpt);
     }

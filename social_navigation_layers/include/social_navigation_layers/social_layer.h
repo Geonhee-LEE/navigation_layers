@@ -4,7 +4,9 @@
 #include <ros/ros.h>
 #include <costmap_2d/layer.h>
 #include <costmap_2d/layered_costmap.h>
-#include <people_msgs/People.h>
+//#include <people_msgs/People.h>
+#include <objects_msgs/ObjectArrayMsg.h>
+#include <leg_tracker/Person.h>
 #include <boost/thread.hpp>
 #include <list>
 
@@ -31,10 +33,13 @@ public:
   }
 
 protected:
-  void peopleCallback(const people_msgs::People& people);
+  void peopleCallback(const objects_msgs::ObjectArrayMsg& people);
   ros::Subscriber people_sub_;
-  people_msgs::People people_list_;
-  std::list<people_msgs::Person> transformed_people_;
+  //people_msgs::People people_list_;
+  objects_msgs::ObjectArrayMsg object_list_;
+  //leg_tracker::Person people_list_;
+  //std::list<people_msgs::Person> transformed_people_;
+  std::list<leg_tracker::Person> transformed_people_;
   ros::Duration people_keep_time_;
   boost::recursive_mutex lock_;
   bool first_time_;

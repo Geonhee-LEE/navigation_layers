@@ -25,32 +25,35 @@ public:
     std::string global_frame = layered_costmap_->getGlobalFrameID();
     transformed_people_.clear();
 
-    for (unsigned int i = 0; i < people_list_.people.size(); i++)
+    for (unsigned int i = 0; i < object_list_.objects.size(); i++)
     {
-      people_msgs::Person& person = people_list_.people[i];
-      people_msgs::Person tpt;
+      if(object_list_.objects[i].object_class != 4)
+        continue;
+      
+      leg_tracker::Person& person = object_list_.objects[i].person;
+      leg_tracker::Person tpt;
       geometry_msgs::PointStamped pt, opt;
 
       try
       {
-        pt.point.x = person.position.x;
-        pt.point.y = person.position.y;
-        pt.point.z = person.position.z;
-        pt.header.frame_id = people_list_.header.frame_id;
-        pt.header.stamp = people_list_.header.stamp;
+        pt.point.x = person.pose.position.x;
+        pt.point.y = person.pose.position.y;
+        pt.point.z = person.pose.position.z;
+        pt.header.frame_id = "map";
+        pt.header.stamp = object_list_.header.stamp;
         tf_->transform(pt, opt, global_frame);
-        tpt.position.x = opt.point.x;
-        tpt.position.y = opt.point.y;
-        tpt.position.z = opt.point.z;
+        tpt.pose.position.x = opt.point.x;
+        tpt.pose.position.y = opt.point.y;
+        tpt.pose.position.z = opt.point.z;
 
         pt.point.x += person.velocity.x;
         pt.point.y += person.velocity.y;
         pt.point.z += person.velocity.z;
         tf_->transform(pt, opt, global_frame);
 
-        tpt.velocity.x = tpt.position.x - opt.point.x;
-        tpt.velocity.y = tpt.position.y - opt.point.y;
-        tpt.velocity.z = tpt.position.z - opt.point.z;
+        tpt.velocity.x = tpt.pose.position.x - opt.point.x;
+        tpt.velocity.y = tpt.pose.position.y - opt.point.y;
+        tpt.velocity.z = tpt.pose.position.z - opt.point.z;
 
         transformed_people_.push_back(tpt);
 
@@ -58,10 +61,10 @@ public:
         double factor = 1.0 + mag * factor_;
         double point = get_radius(cutoff_, amplitude_, covar_ * factor);
 
-        *min_x = std::min(*min_x, tpt.position.x - point);
-        *min_y = std::min(*min_y, tpt.position.y - point);
-        *max_x = std::max(*max_x, tpt.position.x + point);
-        *max_y = std::max(*max_y, tpt.position.y + point);
+        *min_x = std::min(*min_x, tpt.pose.position.x - point);
+        *min_y = std::min(*min_y, tpt.pose.position.y - point);
+        *max_x = std::max(*max_x, tpt.pose.position.x + point);
+        *max_y = std::max(*max_y, tpt.pose.position.y + point);
       }
       catch (tf2::LookupException& ex)
       {
@@ -86,18 +89,18 @@ public:
     boost::recursive_mutex::scoped_lock lock(lock_);
     if (!enabled_) return;
 
-    if (people_list_.people.size() == 0)
+    if (object_list_.objects.size() == 0)
       return;
     if (cutoff_ >= amplitude_)
       return;
 
-    std::list<people_msgs::Person>::iterator p_it;
+    std::list<leg_tracker::Person>::iterator p_it;
     costmap_2d::Costmap2D* costmap = layered_costmap_->getCostmap();
     double res = costmap->getResolution();
 
     for (p_it = transformed_people_.begin(); p_it != transformed_people_.end(); ++p_it)
     {
-      people_msgs::Person person = *p_it;
+      leg_tracker::Person person = *p_it;
       double angle = atan2(person.velocity.y, person.velocity.x) + 1.51;
       double mag = sqrt(pow(person.velocity.x, 2) + pow(person.velocity.y, 2));
       double factor = 1.0 + mag * factor_;
@@ -107,7 +110,7 @@ public:
       unsigned int width = std::max(1, static_cast<int>((base + point) / res)),
                    height = std::max(1, static_cast<int>((base + point) / res));
 
-      double cx = person.position.x, cy = person.position.y;
+      double cx = person.pose.position.x, cy = person.pose.position.y;
 
       double ox, oy;
       if (sin(angle) > 0)

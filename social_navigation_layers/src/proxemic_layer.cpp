@@ -42,20 +42,20 @@ void ProxemicLayer::onInitialize()
 
 void ProxemicLayer::updateBoundsFromPeople(double* min_x, double* min_y, double* max_x, double* max_y)
 {
-  std::list<people_msgs::Person>::iterator p_it;
+  std::list<leg_tracker::Person>::iterator p_it;
 
   for (p_it = transformed_people_.begin(); p_it != transformed_people_.end(); ++p_it)
   {
-    people_msgs::Person person = *p_it;
+    leg_tracker::Person person = *p_it;
 
     double mag = sqrt(pow(person.velocity.x, 2) + pow(person.velocity.y, 2));
     double factor = 1.0 + mag * factor_;
     double point = get_radius(cutoff_, amplitude_, covar_ * factor);
 
-    *min_x = std::min(*min_x, person.position.x - point);
-    *min_y = std::min(*min_y, person.position.y - point);
-    *max_x = std::max(*max_x, person.position.x + point);
-    *max_y = std::max(*max_y, person.position.y + point);
+    *min_x = std::min(*min_x, person.pose.position.x - point);
+    *min_y = std::min(*min_y, person.pose.position.y - point);
+    *max_x = std::max(*max_x, person.pose.position.x + point);
+    *max_y = std::max(*max_y, person.pose.position.y + point);
   }
 }
 
@@ -64,18 +64,18 @@ void ProxemicLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, i
   boost::recursive_mutex::scoped_lock lock(lock_);
   if (!enabled_) return;
 
-  if (people_list_.people.size() == 0)
+  if (object_list_.objects.size() == 0)
     return;
   if (cutoff_ >= amplitude_)
     return;
 
-  std::list<people_msgs::Person>::iterator p_it;
+  std::list<leg_tracker::Person>::iterator p_it;
   costmap_2d::Costmap2D* costmap = layered_costmap_->getCostmap();
   double res = costmap->getResolution();
 
   for (p_it = transformed_people_.begin(); p_it != transformed_people_.end(); ++p_it)
   {
-    people_msgs::Person person = *p_it;
+    leg_tracker::Person person = *p_it;
     double angle = atan2(person.velocity.y, person.velocity.x);
     double mag = sqrt(pow(person.velocity.x, 2) + pow(person.velocity.y, 2));
     double factor = 1.0 + mag * factor_;
@@ -85,7 +85,7 @@ void ProxemicLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, i
     unsigned int width = std::max(1, static_cast<int>((base + point) / res)),
                  height = std::max(1, static_cast<int>((base + point) / res));
 
-    double cx = person.position.x, cy = person.position.y;
+    double cx = person.pose.position.x, cy = person.pose.position.y;
 
     double ox, oy;
     if (sin(angle) > 0)
